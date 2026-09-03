@@ -54,8 +54,22 @@ jobs:
           $installerPath = "$env:TEMP\tailscale.msi"
 
           Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
-          Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
+
+          $proc = Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart", "/log", "$env:TEMP\ts_install.log" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) {
+              Write-Error "MSI install failed with exit code $($proc.ExitCode)"
+              Get-Content "$env:TEMP\ts_install.log" -Tail 50
+              exit 1
+          }
+
+          $tsExe = "$env:ProgramFiles\Tailscale\tailscale.exe"
+          if (-not (Test-Path $tsExe)) {
+              Write-Error "tailscale.exe not found after install at $tsExe"
+              exit 1
+          }
+
           Remove-Item $installerPath -Force
+          Write-Host "Tailscale installed successfully at $tsExe"
 
       - name: Establish Tailscale Connection
         run: |
