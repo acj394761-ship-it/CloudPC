@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       rdp_username:
-        description: 'Fish'
+        description: 'RDP Username'
         required: true
         default: 'RDP'
       rdp_password:
-        description: '2200'
+        description: 'RDP password (leave blank to auto-generate a random password). If entering manually: minimum 8 characters, including uppercase letters, lowercase letters, numbers, and special characters.'
         required: false
         default: ''
 
@@ -36,6 +36,17 @@ jobs:
         run: |
           $username = $env:RDP_USERNAME
 
+          function Test-PasswordComplexity {
+              param([string]$pwd)
+              if ($pwd.Length -lt 8) { return $false }
+              $categories = 0
+              if ($pwd -cmatch '[A-Z]') { $categories++ }
+              if ($pwd -cmatch '[a-z]') { $categories++ }
+              if ($pwd -match '[0-9]') { $categories++ }
+              if ($pwd -match '[^a-zA-Z0-9]') { $categories++ }
+              return ($categories -ge 3)
+          }
+
           if ([string]::IsNullOrWhiteSpace($env:RDP_PASSWORD_INPUT)) {
               $charSet = @{
                   Upper   = [char[]](65..90)
@@ -50,6 +61,10 @@ jobs:
               $rawPassword += $charSet.Special | Get-Random -Count 4
               $password = -join ($rawPassword | Sort-Object { Get-Random })
           } else {
+              if (-not (Test-PasswordComplexity $env:RDP_PASSWORD_INPUT)) {
+                  Write-Error "Mat khau ban nhap khong dat yeu cau: toi thieu 8 ky tu, va phai co du 3 trong 4 loai (chu hoa, chu thuong, so, ky tu dac biet). Vui long chay lai va nhap mat khau khac, hoac de trong de tu tao mat khau."
+                  exit 1
+              }
               $password = $env:RDP_PASSWORD_INPUT
           }
 
